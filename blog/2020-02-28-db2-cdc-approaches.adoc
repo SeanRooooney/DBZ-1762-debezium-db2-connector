@@ -5,17 +5,18 @@ Luis Garces-Erice, Sean Rooney, Peter Urbanetz
 
 == Back-Ground: Bringing Data to a Datalake
 
-In 2016  IBM's Chief Data  Office (CDO) started  an effort to  build a
+In 2016  IBM started  an effort to  build a
 single  platform on  which IBM's  Enterprise Data  could be  ingested,
 managed                                                            and
-processed. link:https://www.slideshare.net/Chief_Data_Officer_Forum/ibm-chief-data-officer-summit-spring-2018-seth-dobrin-ed-walsh[CEDP].
+processed: the Cognitive Enterprise Data Platform (link:https://www.slideshare.net/Chief_Data_Officer_Forum/ibm-chief-data-officer-summit-spring-2018-seth-dobrin-ed-walsh[CEDP]).
 IBM Research was one of the major contributors to this project. One of
 the  fundamental  activities  was bringing  data  from  geographically
-distributed       data       centers       to       the       link:https://www.researchgate.net/publication/338037501_Experiences_with_Managing_Data_Ingestion_into_a_Corporate_Datalake[platform].
+distributed       data       centers       to       the       platform,
+this is described in more detail here:link:https://www.researchgate.net/publication/338037501_Experiences_with_Managing_Data_Ingestion_into_a_Corporate_Datalake[Ingestion into a Datalake].
 
 A  significant  fraction  of  this  enterprise  data  is  gathered  in
 relational   databases  present   in   existing  data-warehouses   and
-datamarts.  These are generally  production system whose primary usage
+datamarts.  These are generally  production systems whose primary usage
 is as "systems  of record" for marketing, sales,  human resources etc.
 As these are systems run by IBM for IBM unsurprisingly they are mainly
 some variant of IBM's Db2.
@@ -31,9 +32,9 @@ HDFS using the appropriate connector.
 
 One of  our key design objective  is automation. There are  over 5,000
 relational database  tables from  over 200 different  sources ingested
-everyday. In  order to scale  the data processing platform  aside from
+every day. In  order to scale  the data processing platform  - aside from
 the governance processes  that allow data owners to bring  data to the
-platform the ingestion itself must be self-service.
+platform - the ingestion itself must be self-service.
 
 Initially relational data was always bulk loaded from the source using
 link:http://sqoop.apache.org/[Sqoop].  A REST  Interface is made available such that  the data owners
@@ -41,14 +42,14 @@ can  configure when  the  data should  be  moved, e.g.   periodically,
 trigger on  event etc.   A Sqoop  ingestion is  a distributed  sets of
 tasks each of which use a JDBC connection to read part of a relational
 database  table, generate  a file  based representation  of the  data,
-e.g. parquet and  then store it on HDFS. With  Sqoop we can completely
-refresh the  data, or append  to it, we *cannot*  modify incrementally
+e.g. parquet, and  then store it on HDFS. With  Sqoop we can completely
+refresh the  data, or append  to it, jowever we *cannot*  modify incrementally
 the data.
 
 
 
 From a practical point of view this limits the periodicity with which
-data can  be updated. Some of  the larger tables represent  10s of
+data can  be updated. Some of  the larger tables represent tens of
 GBytes of compressed parquet. While Sqoop  allows many tasks to be run
 in  parallel for  the  same  table the  bottleneck is typically  the
 network  latency across  the WAN  and/or rate  controlling the  source
@@ -57,19 +58,19 @@ modified on any particular day, meaning that a huge amount of data is
 sent unnecessarily.
 
 
-We started introducing the use of Change Data Capture for the movement
-of data  across the WAN.  Using a system  designed for files  that are
-never modified  as a target for  the CDC system is  problematic. While
-some           recent          work           like          Deltalakes
+To address these issues we introduced the use of Change Data Capture for the movement
+of data  across the WAN.  Ingestion in CDC mode into a storage system  designed for files  that are
+never modified is  problematic. While
+some           recent          work           like  
 link:https://databricks.com/product/delta-lake-on-databricks[Deltalakes]
-or                               Hive                              3.0
-link:https://www.slideshare.net/Hadoop_Summit/what-is-new-in-apache-hive-30[Hive]
+or
+link:https://www.slideshare.net/Hadoop_Summit/what-is-new-in-apache-hive-30[Hive 3.0]
 have  started introducing  delta  changes into  the Hadoop  ecosystem,
 these were not mature enough for our needs.
 
-We introduced the concept of a Relational Database Drop Zone in which
-data owners could instantiate shadows of their database and from which
-we could ingest  into HDFS. As the  Drop Zone and Landing  Zone are in
+As an internative we use the concept of a Relational Database Drop Zone in which
+data owners can instantiate shadows of their database and from which
+we then ingest  into HDFS. As the  Drop Zone and Landing  Zone are in
 the  same  data  center  and  the   ingesting  of  data  is  a  highly
 parallelizable  task,  the  actual  ingestion of  large  tables  was
 typically orders of magnitude faster  than the transferring of the data
@@ -87,8 +88,8 @@ set of operating systems including zOS, AIX, Linux and Windows. It has
 evolved a  large set of distinct  tools for CDC for  uses in different
 contexts.     We    started    exploring     the    use    of    IBM's
 link:https://www.ibm.com/support/pages/q-replication-and-sql-replication-product-documentation-pdf-format-version-101-linux-unix-and-windows[SQL
-Replication].  When tables are put into CDC mode by the DBA, a
-capture agent is started which reads changes made to those tables from
+Replication].  Once tables are put into CDC mode by the admin, a
+capture agent is started that reads changes made to those tables from
 the transaction log. The changes are  stored in special CDC Tables. At
 the remote database an apply agent periodically reads the changes from
 these CDC tables and updates the shadow tables.
@@ -96,12 +97,12 @@ these CDC tables and updates the shadow tables.
 While conceptually this is quite simple in practice it is difficult to
 automate  for the  following reasons: 
 
- - Source  and sink  are tightly coupled:  the same  table cannot  be replicated  to multiple  different target  database systems directly
--  If  the source  system  is already  using replication on a  table e.g. for back-up purposes, we  cannot use this method to replicate to the Datalake 
+ - Source  and sink  are tightly coupled  and therefore the same  table cannot  easily be replicated  to multiple  different target  database system.  
+-  If  the source  system  was already  using replication on a  table e.g. for back-up purposes, we  cannot use this method to replicate to the Datalake. 
 - Elevated privileges are required on the source. Data owners give read access to their system for Sqoop, but  giving administrator  access  to  a third  party  system  is a  compliance nightmare.   
 -  Elevated privileges  are  required  on the  sink.  For simplicity  our  Drop Zone  is  a  single  Db2 system  with  database instances for each  of the data sources.  Allowing the  data owners to set up  SQL Replication to  the Drop Zone  would allow them  access to each other  systems, which is  a compliance violation and  a management nightmare.  
-- The  tools were designed for system admins,  and they feature a huge  number  of gotchas  for  the  unwary,  e.g.  the mode  that  the transaction log has  to be in to  allow CDC, the time  the last backup was taken, whether the  database is row or column oriented, etc.
-- It is a Db2 specific  solution, although the  majority of the  relational data
+- The  tools are designed for system admins and as a result  there are a large number  of gotchas  for  the  unwary. For example, care must be taken in selecting a wide range of parameters such as: the mode  that  the transaction log has  to be in to  allow CDC, the time  the last backup was taken, whether the  database is row or column oriented etc.  
+- It is a Db2-specific  solution, although the  majority of the  relational data
 sources were Db2, we also had Netezza, MySQL and SQL Server sources.
 
 
@@ -109,8 +110,7 @@ We found in  practice that the combination of the  above meant that it
 was impractical to  allow data owners to use IBM  SQL Replication as a
 CDC mechanism for the Datalake.
 
-
-IBM  Offers another  set  of  tools for  data  replication called  IBM
+IBM  offers another  set  of  tools for  data  replication called  IBM
 InfoSphere Data Replication (link:https://www.ibm.com/support/knowledgecenter/SSTRGZ_11.4.0/com.ibm.idr.frontend.doc/pv_welcome.html[IIDR]). This is sold as a product distinct
 from Db2.   IIDR is not  a Db2 specific  solution, working for  a wide
 range of relational  databases as well as  non-relational data storage
@@ -124,7 +124,7 @@ and the tables  to capture are specified. The Access Server is itself
 typically  controlled via  a  Graphical User  Interface  by a  system
 administrator.
 
-So for example  we can have a  Db2 source agent and  a Kafka Confluent
+Thus for example  we can have a  Db2 source agent and  a Kafka Confluent
 sink agent.  Through configuration of the Access Server a table can be
 captured at the source and a Kafka Table (or KTable) representation of
 the table can  be put into Kafka,  with the initial rows  of the table
@@ -148,10 +148,10 @@ agent on that.
 IIDR assumes the  agent runs on the same hardware  architecture as the
 relational database system. The IIDR agent uses a low level link:https://www.ibm.com/support/knowledgecenter/SSEPGG_11.5.0/com.ibm.db2.luw.apdv.api.doc/doc/r0001673.html[Db2 API] to
 read            the           transaction            log.
-Many  of our  sources system  were  running on  AIX/PowerPC while  the
-Kubernetes ran on Linux/Intel. This led to endianness compatibility problems.
+Many  of our  sources systems  are  running on  AIX/PowerPC while the
+Kubernetes platform on which the agents are deployed runs on Linux/Intel. This leads to endianness compatibility problems.
 
-There  were two  fundamental problems  with  our approach:  
+There  are two limitations to this approach:  
 
 - IIDR  is designed to be monitored and managed by  a system administrator. Trying to capture
 the actions and responses of an administrator via scripts that parse the
@@ -161,7 +161,7 @@ interruption, Kubernetes proxy failure, LDAP  being down, etc.)  it
 is almost  impossible to  automate the  appropriate response.  
 - While touching  the source  system as  little as  possible was  an admirable
 objective, from a practical point of  view it is almost impossible on a
-real system to run the CDC  system independently of the source system.
+production system to run the CDC  system independently of the source system.
 If a system admin reloads from back-up  an older version of a table or
 radically changes the  DDL of that table the CDC  system must be aware
 that this has occurred and take the appropriate action. In the case of
@@ -171,8 +171,8 @@ consequently a new version of the Ktable in turn must be created.
 We  saw these  and many  more  problem when  trying to  use the  above
 approach for using  CDC against real production  systems.  We concluded
 that the administration of the CDC system and the source system cannot
-be done independently.
-
+be done independently and that to a large extent our problems came from
+trying to use IIDR for a purpose for which it was not intended.
 
 == Approaches to Implementing a Debezium Db2 Connector
 
@@ -228,14 +228,10 @@ Another approach is to build a notification system on Db2. This would involve:
 - Identifying change events by the usage of OS file system watchers (Linux or Windows).
 This can monitor the transaction log directory of the Db2 database and send events when files are modified or created.
 
-- Determining the exact nature of the event by reading the actual CDC tables changes with the link:https://www.ibm.com/support/knowledgecenter/en/SSEPGG_11.1.0/com.ibm.db2.luw.apdv.api.doc/doc/r0001673.html[db2ReadLog API]. In principle
+- Determining the exact nature of the event by reading the actual table changes with the link:https://www.ibm.com/support/knowledgecenter/en/SSEPGG_11.1.0/com.ibm.db2.luw.apdv.api.doc/doc/r0001673.html[db2ReadLog API]. In principle
 this API can be invoked remotely as a service. 
 
 - Determining the related Db2 data structure via SQL connection, e.g. table DDL.
 
 The debezium event-driven Db2 connector would wait on notifications and then read the actual changes via db2ReadLog and SQL.
 This would require the watcher agent to run locally on the database system, similarly to the capture server.
-
-
-
-
