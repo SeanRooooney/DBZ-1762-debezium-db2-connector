@@ -177,8 +177,8 @@ be done independently.
 == Approaches to Implementing a Debezium Db2 Connector
 
 When  Debezium  became available  we  started  evaluating it  for  our
-purposes.  As it works on a wide range of relational database system and
-is open source we could imagine that database administrator would allow
+purposes.  As it works with a wide range of relational database system and
+is open source we could imagine that database administrators would allow
 it  to  be  used  to  generate a  representation  of  their  data  for
 downstream  applications.   Essentially,  the  Debezium  system  would
 become an  extension of  the database source  system. Debezium  is not
@@ -228,10 +228,10 @@ Another approach is to build a notification system on Db2. This would involve:
 - Identifying change events by the usage of OS file system watchers (Linux or Windows).
 This can monitor the transaction log directory of the Db2 database and send events when files are modified or created.
 
-- Determining the exact nature of the event by reading the actual CDC tables changes with link:https://www.ibm.com/support/knowledgecenter/en/SSEPGG_11.1.0/com.ibm.db2.luw.apdv.api.doc/doc/r0001673.html[db2ReadLog API]. In principle
+- Determining the exact nature of the event by reading the actual CDC tables changes with the link:https://www.ibm.com/support/knowledgecenter/en/SSEPGG_11.1.0/com.ibm.db2.luw.apdv.api.doc/doc/r0001673.html[db2ReadLog API]. In principle
 this API can be invoked remotely as a service. 
 
-- Determining the related Db2 data structure via SQL connection, e.g table DDL.
+- Determining the related Db2 data structure via SQL connection, e.g. table DDL.
 
 The debezium event-driven Db2 connector would wait on notifications and then read the actual changes via db2ReadLog and SQL.
 This would require the watcher agent to run locally on the database system, similarly to the capture server.
