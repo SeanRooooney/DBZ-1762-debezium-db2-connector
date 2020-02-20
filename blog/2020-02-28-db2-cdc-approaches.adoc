@@ -36,7 +36,7 @@ the governance processes  that allow data owners to bring  data to the
 platform the ingestion itself must be self-service.
 
 Initially relational data was always bulk loaded from the source using
-Sqoop.  A REST  Interface is made available such that  the data owners
+link:http://sqoop.apache.org/[Sqoop].  A REST  Interface is made available such that  the data owners
 can  configure when  the  data should  be  moved, e.g.   periodically,
 trigger on  event etc.   A Sqoop  ingestion is  a distributed  sets of
 tasks each of which use a JDBC connection to read part of a relational
@@ -47,13 +47,13 @@ the data.
 
 
 
-From a practical point of view this limited the periodicity with which
-data could  be updated. Some of  the larger tables represented  10s of
+From a practical point of view this limits the periodicity with which
+data can  be updated. Some of  the larger tables represent  10s of
 GBytes of compressed parquet. While Sqoop  allows many tasks to be run
-in  parallel for  the  same  table the  bottleneck  typically was  the
+in  parallel for  the  same  table the  bottleneck is typically  the
 network  latency across  the WAN  and/or rate  controlling the  source
-database system itself.  Often only a  small fraction of the table was
-modified on any particular day, meaning that a huge amount of data was
+database system itself.  Often only a  small fraction of the table is
+modified on any particular day, meaning that a huge amount of data is
 sent unnecessarily.
 
 
@@ -96,12 +96,12 @@ these CDC tables and updates the shadow tables.
 While conceptually this is quite simple in practice it is difficult to
 automate  for the  following reasons: 
 
- - source  and sink  are tightly coupled:  the same  table cannot  be replicated  to multiple  different target  database systems directly
--  if  the source  system  is already  using replication on a  table e.g. for back-up purposes, we  cannot use this method to replicate to the Datalake 
-- elevated privileges are required on the source. Data owners give read access to their system for Sqoop, but  giving administrator  access  to  a third  party  system  is a  compliance nightmare.   
--  elevated privileges  are  required  on the  sink.  For simplicity  our  Drop Zone  is  a  single  Db2 system  with  database instances for each  of the data sources.  Allowing the  data owners to set up  SQL Replication to  the Drop Zone  would allow them  access to each other  systems, which is  a compliance violation and  a management nightmare.  
-- the  tools were designed for system admins,  and they feature a huge  number  of gotchas  for  the  unwary,  e.g.  the mode  that  the transaction log has  to be in to  allow CDC, the time  the last backup was taken, whether the  database is row or column oriented, etc.
-- it is a Db2 specific  solution, although the  majority of the  relational data
+ - Source  and sink  are tightly coupled:  the same  table cannot  be replicated  to multiple  different target  database systems directly
+-  If  the source  system  is already  using replication on a  table e.g. for back-up purposes, we  cannot use this method to replicate to the Datalake 
+- Elevated privileges are required on the source. Data owners give read access to their system for Sqoop, but  giving administrator  access  to  a third  party  system  is a  compliance nightmare.   
+-  Elevated privileges  are  required  on the  sink.  For simplicity  our  Drop Zone  is  a  single  Db2 system  with  database instances for each  of the data sources.  Allowing the  data owners to set up  SQL Replication to  the Drop Zone  would allow them  access to each other  systems, which is  a compliance violation and  a management nightmare.  
+- The  tools were designed for system admins,  and they feature a huge  number  of gotchas  for  the  unwary,  e.g.  the mode  that  the transaction log has  to be in to  allow CDC, the time  the last backup was taken, whether the  database is row or column oriented, etc.
+- It is a Db2 specific  solution, although the  majority of the  relational data
 sources were Db2, we also had Netezza, MySQL and SQL Server sources.
 
 
@@ -146,22 +146,20 @@ catalog the remote Db2 system to look  like it was local and ran the
 agent on that.
 
 IIDR assumes the  agent runs on the same hardware  architecture as the
-relational database system. The IIDR agent uses a low level Db2 API to
-read            the           transaction            log           the
-link:https://www.ibm.com/support/knowledgecenter/SSEPGG_11.5.0/com.ibm.db2.luw.apdv.api.doc/doc/r0001673.html[db2ApiRead]
+relational database system. The IIDR agent uses a low level link:https://www.ibm.com/support/knowledgecenter/SSEPGG_11.5.0/com.ibm.db2.luw.apdv.api.doc/doc/r0001673.html[Db2 API] to
+read            the           transaction            log.
 Many  of our  sources system  were  running on  AIX/PowerPC while  the
 Kubernetes ran on Linux/Intel. This led to endianness compatibility problems.
 
 There  were two  fundamental problems  with  our approach:  
-- IIDR  is
-designed to be monitored and managed by  a system administrator. Trying to capture
+
+- IIDR  is designed to be monitored and managed by  a system administrator. Trying to capture
 the actions and responses of an administrator via scripts that parse the
 logs and attempt  to react to failure can only be brittle.  As long as nothing
 misbehaves  the  system  runs  fine, but  if  something  fails  (network
 interruption, Kubernetes proxy failure, LDAP  being down, etc.)  it
 is almost  impossible to  automate the  appropriate response.  
-- while
-touching  the source  system as  little as  possible was  an admirable
+- While touching  the source  system as  little as  possible was  an admirable
 objective, from a practical point of  view it is almost impossible on a
 real system to run the CDC  system independently of the source system.
 If a system admin reloads from back-up  an older version of a table or
@@ -204,9 +202,9 @@ An investigation  of the code concluded that  the model used  by the
 already  existing  connector  for  Microsoft  SQL  Server  could
 be largely reused for Db2. In essence: 
 
-- the SQL queries to poll the changes are different
-- the structure and nature of  the LSN are  different; 
-- the fact  that Db2 distinguishes between a  database system and  a database  while SQL Server needs to be accounted for.
+- The SQL queries to poll the changes are different
+- The structure and nature of  the LSN are  different
+- The fact  that Db2 distinguishes between a  database system and  a database  while SQL Server needs to be accounted for.
 
 Otherwise everything else could be reused.
 
@@ -227,13 +225,13 @@ source system.
 
 Another approach is to build a notification system on Db2. This would involve:
 
-- identifying change events by the usage of OS file system watchers (Linux or Windows).
+- Identifying change events by the usage of OS file system watchers (Linux or Windows).
 This can monitor the transaction log directory of the Db2 database and send events when files are modified or created.
 
-- determining the exact nature of the event by reading the actual CDC tables changes with link:https://www.ibm.com/support/knowledgecenter/en/SSEPGG_11.1.0/com.ibm.db2.luw.apdv.api.doc/doc/r0001673.html[db2ReadLog API]. In principle
+- Determining the exact nature of the event by reading the actual CDC tables changes with link:https://www.ibm.com/support/knowledgecenter/en/SSEPGG_11.1.0/com.ibm.db2.luw.apdv.api.doc/doc/r0001673.html[db2ReadLog API]. In principle
 this API can be invoked remotely as a service. 
 
-- determining the related Db2 data structure via SQL connection, e.g table DDL.
+- Determining the related Db2 data structure via SQL connection, e.g table DDL.
 
 The debezium event-driven Db2 connector would wait on notifications and then read the actual changes via db2ReadLog and SQL.
 This would require the watcher agent to run locally on the database system, similarly to the capture server.
